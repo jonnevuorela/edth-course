@@ -1,4 +1,5 @@
 from classes import Employee
+import connect
 import re
 
 
@@ -59,6 +60,3 @@ def parseMissingData(data: list[str]):
             employee_list.append(employee)
 
     return employee_list
-
-
-load_csv()
