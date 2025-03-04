@@ -46,28 +46,25 @@ def execute_sql_file(filename):
         conn_string = f"postgresql://{default_params['user']}:{
             default_params['password']}@{default_params['host']}/{default_params['dbname']}"
         conn = psycopg2.connect(conn_string)
-        conn.autocommit = True
         cursor = conn.cursor()
 
         try:
             with open(filename, "r", encoding='utf-8') as file:
                 sql_script = file.read()
             cursor.execute(sql_script)
+            conn.commit()
             print("Tietokanta yhteys ja scriptin suoritus onnistui!")
 
         except psycopg2.Error as e:
             print(f"Scriptin suorituksessa virhe: {e}")
+            conn.rollback()
 
         finally:
+            print("Kirjaudutaan postgres käyttäjältä ulos...")
             cursor.close()
 
     except psycopg2.Error as e:
         print(f"Tietokanta yhteys ei onnistunut: {e}")
-
-    finally:
-        if conn is not None:
-            print("Kirjaudutaan postgres käyttäjältä ulos...")
-            conn.close()
 
     print("---------------------------------------------------------\n")
 
@@ -114,7 +111,9 @@ def create_app_user():
         ) as conn:
             with conn.cursor() as cur:
                 cur.execute("CREATE USER app WITH PASSWORD 'pass';")
+                conn.commit()
                 print("Käyttäjä luotu.")
+
     except psycopg2.Error as e:
         print(f"Virhe käyttäjän luonnissa: {e}")
 
