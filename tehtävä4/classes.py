@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 
 class Education(Enum):
-    no_education = 0
+    bachelors_degree = 0
     high_school = 1
-    bachelors_degree = 2
-    masters_degree = 3
+    masters_degree = 2
+    no_education = 3
     phd = 4
 
 

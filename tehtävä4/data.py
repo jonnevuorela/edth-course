@@ -23,9 +23,9 @@ def load_csv():
                 fields: list[str] = line.rstrip().split(',')
                 employee = Employee(
                     age=int(fields[0]),
-                    gender=str(fields[1]),
-                    education_level=str(fields[2]),
-                    job_title=str(fields[3]),
+                    gender=str(fields[1]).lower(),
+                    education_level=str(fields[2]).lower(),
+                    job_title=str(fields[3]).lower(),
                     years_of_experience=float(fields[4]),
                     salary=float(fields[5]),
                 )
@@ -39,6 +39,45 @@ def load_csv():
     return employee_list
 
 
+def normalize_and_segregate_values(employee_list):
+    education_levels = set()
+    genders = set()
+    job_titles = set()
+
+    for employee in employee_list:
+        employee.education_level = normalize_education_level(
+            employee.education_level)
+        education_levels.add(employee.education_level)
+
+        employee.gender = employee.gender.strip()
+        genders.add(employee.gender)
+
+        job_titles.add(employee.job_title)
+
+    education_levels_list = sorted(list(education_levels))
+    gender_list = sorted(list(genders))
+    job_titles_list = sorted(list(job_titles))
+
+    return education_levels_list, gender_list, job_titles_list
+
+
+def normalize_education_level(education_level):
+    education = education_level.lower().strip()
+
+    if "master" in education:
+        return "master's degree"
+    elif "bachelor" in education:
+        return "bachelor's degree"
+    elif "phd" in education or "phd" in education:
+        return "phd"
+    elif "high school" in education or "highschool" in education:
+        return "high school"
+    elif "no " in education or education == "":
+        return "no education"
+    else:
+        return education
+
+
 def parseMissingData(data: list[str]):
 
     employee_list: list[Employee] = []
@@ -49,9 +88,9 @@ def parseMissingData(data: list[str]):
         fields: list[str] = line.rstrip().split(',')
         employee = Employee(
             age=int(fields[0]) if fields[0].isdigit() else 0,
-            gender=str(fields[1]) or 'Other',
-            education_level=str(fields[2]) or 'no education',
-            job_title=str(fields[3]) or 'no title',
+            gender=str(fields[1]).lower() or 'other',
+            education_level=str(fields[2]).lower() or 'no education',
+            job_title=str(fields[3]).lower() or 'no title',
             years_of_experience=float(
                 fields[4]) if fields[4].isdigit() else 0,
             salary=float(fields[5]) if fields[5].isdigit() else 0,
