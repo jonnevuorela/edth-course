@@ -66,23 +66,57 @@ def execute_sql_file(filename):
 
     finally:
         if conn is not None:
+            print("Kirjaudutaan postgres käyttäjältä ulos...")
             conn.close()
 
     print("---------------------------------------------------------\n")
 
 
-def tryConn():
+def try_conn():
     try:
         with connect() as conn:
-            return
+            print("Yhteys onnistui.")
+            return True, conn
     except psycopg2.Error as e:
-        print(f"error {e}")
-        _choice = input("Luodaanko tietokanta? (y/n)").lower()
-        if _choice == "y":
-            execute_db_creation("db_init_part_1.sql")
-            execute_sql_file("db_init_part_2.sql")
-        elif _choice == "n":
-            return
+        print(e)
+        # Jos tämä on oikea tapa käsitellä virheitä pythonissa, niin voi voi.
+        # kummallakaan errorilla ei jostain syystä ole pgcode arvoa, joten en muuta keksi
+        if "password authentication failed" in str(e):
+            _choice = input(
+                "Ohjelma tarvitsee käyttäjän. Luodaanko käyttäjä? (y/n)").lower()
+            if _choice == "y":
+                create_app_user()
+                return False, None
+            elif _choice == "n":
+                return False, None
+        elif "does not exist" in str(e):
+            _choice = input(
+                "Tietokantaa ei löydy. Luodaanko tietokanta? (y/n)").lower()
+            if _choice == "y":
+                execute_db_creation("db_init_part_1.sql")
+                execute_sql_file("db_init_part_2.sql")
+                return False, None
+            elif _choice == "n":
+                return False, None
+        else:
+            print("virhe: ", e)
+            return False, None
+    return False, None
+
+
+def create_app_user():
+    try:
+        with psycopg2.connect(
+            dbname="postgres",
+            user="postgres",
+            password=getpass("Syötä salasana käyttäjälle postgres: "),
+            host="localhost"
+        ) as conn:
+            with conn.cursor() as cur:
+                cur.execute("CREATE USER app WITH PASSWORD 'pass';")
+                print("Käyttäjä luotu.")
+    except psycopg2.Error as e:
+        print(f"Virhe käyttäjän luonnissa: {e}")
 
 
 @contextmanager
