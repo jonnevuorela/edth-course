@@ -65,10 +65,24 @@ def execute_sql_file(filename):
         print(f"Tietokanta yhteys ei onnistunut: {e}")
 
     finally:
-        if 'conn' in locals():
+        if conn is not None:
             conn.close()
 
     print("---------------------------------------------------------\n")
+
+
+def tryConn():
+    try:
+        with connect() as conn:
+            return
+    except psycopg2.Error as e:
+        print(f"error {e}")
+        _choice = input("Luodaanko tietokanta? (y/n)").lower()
+        if _choice == "y":
+            execute_db_creation("db_init_part_1.sql")
+            execute_sql_file("db_init_part_2.sql")
+        elif _choice == "n":
+            return
 
 
 @contextmanager
@@ -78,6 +92,8 @@ def connect():
         conn = psycopg2.connect(
             "postgresql://app:pass@localhost/tehtava4_jonne_vuorela")
         yield conn
+    except psycopg2.Error as e:
+        raise e
     finally:
         if conn is not None:
             conn.close()
