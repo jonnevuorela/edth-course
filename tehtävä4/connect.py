@@ -5,8 +5,8 @@ import subprocess
 
 
 def execute_db_creation(filename):
-    print("---------------------------------------------------------")
-    print(f'\nSuoritetaan sql tiedosto {filename}\n')
+    print("\n---------------------------------------------------------")
+    print(f'Suoritetaan sql tiedosto {filename}\n')
     print("Kirjaudutaan tietokantaan postgres, käyttäjänä postgres.")
 
     password = getpass("Syötä salasana käyttäjälle postgres: ")
@@ -28,12 +28,10 @@ def execute_db_creation(filename):
     except Exception as e:
         print(f"Virhe: {e}")
 
-    print("---------------------------------------------------------\n")
-
 
 def execute_sql_file(filename):
-    print("---------------------------------------------------------")
-    print(f'\nSuoritetaan sql tiedosto {filename}\n')
+    print("\n---------------------------------------------------------")
+    print(f'Suoritetaan sql tiedosto {filename}\n')
     print("Kirjaudutaan tietokantaan postgres, käyttäjänä postgres.")
     default_params = {
         'dbname': 'tehtava4_jonne_vuorela',
@@ -66,14 +64,13 @@ def execute_sql_file(filename):
     except psycopg2.Error as e:
         print(f"Tietokanta yhteys ei onnistunut: {e}")
 
-    print("---------------------------------------------------------\n")
-
 
 def try_conn():
     try:
-        with connect() as conn:
-            print("Yhteys onnistui.")
-            return True, conn
+        conn = psycopg2.connect(
+            "postgresql://app:pass@localhost/tehtava4_jonne_vuorela")
+        print("Yhteys onnistui.")
+        return True, conn
     except psycopg2.Error as e:
         print(e)
         # Jos tämä on oikea tapa käsitellä virheitä pythonissa, niin voi voi.

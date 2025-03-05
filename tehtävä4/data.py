@@ -9,6 +9,8 @@ def printlist(lst: list) -> None:
 
 def load_csv():
     with open("teht4.csv", mode="r", encoding="utf-8-sig") as file:
+        print("\n---------------------------------------------------------")
+        print("Luetaan data tiedostolta...")
         employee_list: list[Employee] = []
         discarded: list[str] = []
 
@@ -36,6 +38,16 @@ def load_csv():
         incomplete_employees = parseMissingData(discarded)
         for incomplete_employee in incomplete_employees:
             employee_list.append(incomplete_employee)
+    return employee_list
+
+
+def assign_ids_to_employees(employee_list, education_levels_list, gender_list, job_titles_list):
+    for employee in employee_list:
+        employee.gender_id = gender_list.index(employee.gender) + 1
+        employee.education_level_id = education_levels_list.index(
+            employee.education_level) + 1
+        employee.job_title_id = job_titles_list.index(employee.job_title) + 1
+
     return employee_list
 
 
