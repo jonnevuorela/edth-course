@@ -1,4 +1,3 @@
-from typing_extensions import Doc
 import pymongo
 import psycopg2
 from psycopg2.extensions import AsIs
@@ -49,19 +48,48 @@ class Table:
 
 @dataclass
 class Database:
+    name: str
     tables: list[Table]
+
+    def __str__(self) -> str:
+        if not self.tables:
+            return f"Database: {self.name} (empty)"
+
+        result = [f"Database: {self.name}"]
+        result.append("  Table | Name")
+        result.append("--------+---------------")
+
+        for table in self.tables:
+            result.append(f"        | {table.name}")
+
+        return "\n".join(result)
+
+
+def startOver():
+    _choice = input("Haluatko jatkaa? (k/e): ")
+    match _choice.lower():
+        case "e":
+            return 0
+        case "k":
+            promptAction()
 
 
 def deleteDatabase():
-    startOver()
+    try:
+        mongoConn = pymongo.MongoClient("mongodb://localhost:27017/")
+        _mdbs = mongoConn.list_database_names()
+        print("MongoDb tietokannat")
+        print("-------------------")
+        for _db in _mdbs:
+            print(_db)
 
-
-def importDatabase():
-    passw = getpass("Syötä postgres käyttäjän salasana: ")
-    listDb(passw)
-    conn = selectDb(passw)
-    if conn:
-        database = loadPostgresDatabase(conn)
+        _choice = input("Minkä tietokannan haluat poistaa? : ")
+        if _choice in _mdbs:
+            mongoConn.drop_database(_choice)
+    except KeyboardInterrupt:
+        print("\n")
+        print("Palataan valikkoon...")
+        pass
 
     startOver()
 
@@ -89,18 +117,60 @@ def promptAction():
             queryDatabase()
 
 
-def startOver():
-    _choice = input("Haluatko jatkaa? (k/e): ")
-    match _choice.lower():
-        case "e":
-            return 0
-        case "k":
-            promptAction()
+def importDatabase():
+    passw = getpass("Syötä postgres käyttäjän salasana: ")
+    listDb(passw)
+    pgConn = selectDb(passw)
+    if pgConn:
+        pgDatabase = loadPostgresDatabase(pgConn)
+        if pgDatabase:
+            print("Yhdistetään MongoDb...\n")
+            mongoConn = pymongo.MongoClient("mongodb://localhost:27017/")
+            try:
+                _mdbs = mongoConn.list_database_names()
+                print("MongoDb tietokannat")
+                print("-------------------")
+                for _db in _mdbs:
+                    print(_db)
+                print("-------------------\n")
+                if pgDatabase.name not in _mdbs:
+                    try:
+                        mDatabase = mongoConn[pgDatabase.name]
+
+                        for table in pgDatabase.tables:
+                            collection = mDatabase[table.name]
+
+                        document_list: list[dict] = []
+
+                        for row in table.rows:
+                            document_list.append(row)
+
+                        result = collection.insert_many(document_list)
+                        if result.acknowledged:
+                            print("Tuonti onnistui!")
+
+                    except Exception as e:
+                        print(e)
+
+            except KeyboardInterrupt:
+                pass
+            except pymongo.errors.ServerSelectionTimeoutError:
+                print("Server connection timed out.")
+                _choice = input("Yriteäänkö mongoDb yhteyttä uudelleen? k/e")
+                match _choice.lower():
+                    case "k":
+                        importDatabase()
+                    case "e":
+                        pass
+            finally:
+                mongoConn.close()
+
+    startOver()
 
 
 def loadPostgresDatabase(conn):
     """
-    Jäsentää haettavan tietokannan dataclassien mukaisesti.
+    Jäsentää haettavan postgres tietokannan dataclassien mukaisesti.
 
     Args:
         conn: psycopg2.connect
@@ -120,8 +190,6 @@ def loadPostgresDatabase(conn):
         for _table in result:
             _qry = ("SELECT * FROM %s")
             # resultissa järjestyksessä toisena on tablen nimi.
-            _args = _table[1]
-            print(_qry, (AsIs(_table[1])))
             cur.execute(_qry, (AsIs(_table[1]),))
 
             rows = cur.fetchall()
@@ -144,7 +212,11 @@ def loadPostgresDatabase(conn):
                 rows=_rows
             )
             _tables.append(table)
-        database = Database(tables=_tables)
+        database = Database(
+            name=conn.info.dbname,
+            tables=_tables
+        )
+        print(database)
         conn.commit()
     except Exception as e:
         print(e)
@@ -156,25 +228,29 @@ def loadPostgresDatabase(conn):
 def listDb(passw):
     probeConn = None
 
-    probeConn = psycopg2.connect(
-        dbname="postgres",
-        user="postgres",
-        password=passw,
-        host="localhost",
-        port="5432"
-    )
+    try:
+        probeConn = psycopg2.connect(
+            dbname="postgres",
+            user="postgres",
+            password=passw,
+            host="localhost",
+            port="5432"
+        )
 
-    cursor = probeConn.cursor()
+        cursor = probeConn.cursor()
 
-    cursor.execute(
-        "SELECT datname FROM pg_database WHERE datistemplate = false;")
+        cursor.execute(
+            "SELECT datname FROM pg_database WHERE datistemplate = false;")
 
-    databases = cursor.fetchall()
+        databases = cursor.fetchall()
 
-    print("--------------------------------------")
-    print("Löydetyt postgres tietokannat")
-    for db in databases:
-        print(db[0])
+        print("--------------------------------------")
+        print("Löydetyt postgres tietokannat")
+        for db in databases:
+            print(db[0])
+    except psycopg2.OperationalError:
+        print("Kirjautuminen epäonnistui.")
+        importDatabase()
 
     cursor.close()
     probeConn.close()
@@ -236,7 +312,7 @@ def create_app_user(db):
         print(f"Virhe käyttäjän luonnissa: {e}")
 
 
-@contextmanager
+@ contextmanager
 def connect(db):
     conn = None
     try:
