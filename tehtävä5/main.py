@@ -98,6 +98,39 @@ def deleteDatabase():
 
 
 def queryDatabase():
+    print("--------------------------------------")
+    print("0. Palaa valikkoon")
+    print("1. Keskiarvopalkat sukupuolen ja koulutuksen mukaan")
+    print("2. Maksimtyökokemusket tittelin ja sukupuolen mukaan")
+    print("3. Työntekijöiden määrät titteleittäin ja koulutustasoittain ryhmiteltynä")
+    print("4. Työntekijöiden keskimääräinen ikä sukupuolen ja koulutustason mukaan")
+    print("5. Kaikkien palkkojen yhteenlasketty summa titteleittäin ja sukupuolittain")
+    print("6. Kaikki tittelit, joissa on vähintään 15 työntekijää koulutustasolla Masters's Degree")
+    print("7. Korkeimman keskiarvopalkan määrä ja sukupuoli")
+    _choice = input(": ")
+    try:
+        match _choice:
+            case "0":
+                pass
+            case "1":
+                pass
+            case "2":
+                pass
+            case "3":
+                pass
+            case "4":
+                pass
+            case "5":
+                pass
+            case "6":
+                pass
+            case "7":
+                pass
+    except KeyboardInterrupt:
+        print("\n")
+        print("Palataan valikkoon...")
+        pass
+
     startOver()
 
 
