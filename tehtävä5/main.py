@@ -66,12 +66,15 @@ class Database:
 
 
 def startOver():
-    _choice = input("Haluatko jatkaa? (k/e): ")
-    match _choice.lower():
-        case "e":
-            return 0
-        case "k":
-            promptAction()
+    try:
+        _choice = input("Haluatko jatkaa? (k/e): ")
+        match _choice.lower():
+            case "e":
+                return 0
+            case "k":
+                promptAction()
+    except KeyboardInterrupt:
+        pass
 
 
 def deleteDatabase():
@@ -124,48 +127,69 @@ def importDatabase():
     if pgConn:
         pgDatabase = loadPostgresDatabase(pgConn)
         if pgDatabase:
-            print("Yhdistetään MongoDb...\n")
-            mongoConn = pymongo.MongoClient("mongodb://localhost:27017/")
-            try:
-                _mdbs = mongoConn.list_database_names()
-                print("MongoDb tietokannat")
-                print("-------------------")
-                for _db in _mdbs:
-                    print(_db)
-                print("-------------------\n")
-                if pgDatabase.name not in _mdbs:
-                    try:
-                        mDatabase = mongoConn[pgDatabase.name]
-
-                        for table in pgDatabase.tables:
-                            collection = mDatabase[table.name]
-
-                        document_list: list[dict] = []
-
-                        for row in table.rows:
-                            document_list.append(row)
-
-                        result = collection.insert_many(document_list)
-                        if result.acknowledged:
-                            print("Tuonti onnistui!")
-
-                    except Exception as e:
-                        print(e)
-
-            except KeyboardInterrupt:
-                pass
-            except pymongo.errors.ServerSelectionTimeoutError:
-                print("Server connection timed out.")
-                _choice = input("Yriteäänkö mongoDb yhteyttä uudelleen? k/e")
-                match _choice.lower():
-                    case "k":
-                        importDatabase()
-                    case "e":
-                        pass
-            finally:
-                mongoConn.close()
+            importPostgresDatabaseToMongo(pgDatabase)
 
     startOver()
+
+
+def importPostgresDatabaseToMongo(pgDatabase):
+    """
+    Tuo parametrina annetun postgres tietokannan mongoon
+
+    Args:
+        conn: Database
+
+    Returns:
+
+    Example:
+        importPostgresDatabaseToMongo(pgDatabase)
+    """
+    print("Yhdistetään MongoDb...\n")
+    mongoConn = pymongo.MongoClient("mongodb://localhost:27017/")
+    try:
+        _mdbs = mongoConn.list_database_names()
+        print("MongoDb tietokannat")
+        print("-------------------")
+        for _db in _mdbs:
+            print(_db)
+        print("-------------------\n")
+        if pgDatabase.name not in _mdbs:
+            try:
+                mDatabase = mongoConn[pgDatabase.name]
+                collections_list: list[pymongo.collection] = []
+                ack = []
+
+                for table in pgDatabase.tables:
+                    _collection = mDatabase[table.name]
+                    collections_list.append(_collection)
+
+                    document_list: list[dict] = []
+                    for row in table.rows:
+                        document_list.append(row)
+                        result = _collection.insert_one(row)
+                        ack.append(result)
+
+                for r in ack:
+                    if not r.acknowledged:
+                        print(r.acknowledged)
+
+            except Exception as e:
+                print(e)
+        else:
+            print("Tietokantaa ei tuotu. Onko tietokanta jo mongossa?")
+
+    except KeyboardInterrupt:
+        pass
+    except pymongo.errors.ServerSelectionTimeoutError:
+        print("Server connection timed out.")
+        _choice = input("Yriteäänkö mongoDb yhteyttä uudelleen? k/e")
+        match _choice.lower():
+            case "k":
+                importDatabase()
+            case "e":
+                pass
+    finally:
+        mongoConn.close()
 
 
 def loadPostgresDatabase(conn):
@@ -312,7 +336,7 @@ def create_app_user(db):
         print(f"Virhe käyttäjän luonnissa: {e}")
 
 
-@ contextmanager
+@contextmanager
 def connect(db):
     conn = None
     try:
