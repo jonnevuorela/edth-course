@@ -67,7 +67,7 @@ class Database:
 
 def startOver():
     try:
-        _choice = input("Haluatko jatkaa? (k/e): ")
+        _choice = input("Palataanko valikkoon? (k/e): ")
         match _choice.lower():
             case "e":
                 return 0
@@ -98,6 +98,18 @@ def deleteDatabase():
 
 
 def queryDatabase():
+    mongoConn = pymongo.MongoClient("mongodb://localhost:27017/")
+    db: str
+    _mdbs = mongoConn.list_database_names()
+    print("MongoDb tietokannat")
+    print("-------------------")
+    for _db in _mdbs:
+        print(_db)
+
+    _choice = input("Mihin tietokantaan haluat tehdä kyselyjä? : ")
+    if _choice in _mdbs:
+        db = mongoConn[_choice]
+
     print("--------------------------------------")
     print("0. Palaa valikkoon")
     print("1. Keskiarvopalkat sukupuolen ja koulutuksen mukaan")
@@ -109,29 +121,381 @@ def queryDatabase():
     print("7. Korkeimman keskiarvopalkan määrä ja sukupuoli")
     _choice = input(": ")
     try:
+        mongoConn = pymongo.MongoClient("mongodb://localhost:27017/")
         match _choice:
             case "0":
-                pass
+                _qry = None
             case "1":
+                _qry = [
+                    {
+                        '$lookup': {
+                            'from': 'education_level',
+                            'localField': 'education_level_id',
+                            'foreignField': 'id',
+                            'as': 'education_info'
+                        }
+                    },
+                    {
+                        '$lookup': {
+                            'from': 'gender',
+                            'localField': 'gender_id',
+                            'foreignField': 'id',
+                            'as': 'gender_info'
+                        }
+                    },
+                    {
+                        '$unwind': {
+                            'path': '$education_info',
+                        }
+                    },
+                    {
+                        '$unwind': {
+                            'path': '$gender_info',
+                        }
+                    },
+                    {
+                        '$group': {
+                            '_id': {
+                                'education': '$education_info.level',
+                                'gender': '$gender_info.gender'
+                            },
+                            'avgSalary': {
+                                '$avg': '$salary'
+                            },
+                            'education': {
+                                '$first': '$education_info.level'
+                            },
+                            'gender': {
+                                '$first': '$gender_info.gender'
+                            }
+
+                        }
+                    },
+                    {
+                        '$project': {
+                            '_id': 0,
+                        }
+                    }
+                ]
                 pass
             case "2":
+                _qry = [
+                    {
+                        '$lookup': {
+                            'from': 'job_title',
+                            'localField': 'job_title_id',
+                            'foreignField': 'id',
+                            'as': 'title_info'
+                        }
+                    }, {
+                        '$lookup': {
+                            'from': 'gender',
+                            'localField': 'gender_id',
+                            'foreignField': 'id',
+                            'as': 'gender_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$title_info',
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$gender_info',
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'job_title': '$title_info.id',
+                                'gender': '$gender_info.id'
+                            },
+                            'gender': {
+                                '$first': '$gender_info.gender'
+                            },
+                            'job_title': {
+                                '$first': '$title_info.title'
+                            },
+                            'maxYoe': {
+                                '$max': '$years_of_experience'
+                            }
+                        }
+                    },
+                    {
+                        '$project': {
+                            '_id': 0
+                        }
+                    }
+                ]
                 pass
             case "3":
+                _qry = [
+                    {
+                        '$lookup': {
+                            'from': 'education_level',
+                            'localField': 'education_level_id',
+                            'foreignField': 'id',
+                            'as': 'education_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$education_info',
+                        }
+                    }, {
+                        '$lookup': {
+                            'from': 'job_title',
+                            'localField': 'job_title_id',
+                            'foreignField': 'id',
+                            'as': 'title_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$title_info',
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'education_level': '$education_info.id',
+                                'job_title': '$title_info.id',
+                            },
+                            'Education': {
+                                '$first': '$education_info.level'
+                            },
+                            'Title': {
+                                '$first': '$title_info.title'
+                            },
+                            'Employee_Count': {
+                                '$sum': 1
+                            }
+                        }
+                    }, {
+                        '$project': {
+                            '_id': 0
+                        }
+                    }
+                ]
                 pass
             case "4":
+                _qry = [
+                    {
+                        '$lookup': {
+                            'from': 'education_level',
+                            'localField': 'education_level_id',
+                            'foreignField': 'id',
+                            'as': 'education_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$education_info'
+                        }
+                    }, {
+                        '$lookup': {
+                            'from': 'gender',
+                            'localField': 'gender_id',
+                            'foreignField': 'id',
+                            'as': 'gender_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$gender_info'
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'education_level': '$education_info.id',
+                                'gender': '$gender_info.id',
+
+                            },
+                            'education_level': {
+                                '$first': '$education_info.level'},
+                            'gender': {
+                                '$first': '$gender_info.gender'
+                            },
+                            'avgAge': {'$avg': '$age'},
+                            'count': {'$sum': 1}
+
+                        }
+                    },
+                    {
+                        '$project': {
+                            '_id': 0
+                        }
+                    }
+                ]
                 pass
             case "5":
+                _qry = [
+                    {
+                        '$lookup': {
+                            'from': 'job_title',
+                            'localField': 'job_title_id',
+                            'foreignField': 'id',
+                            'as': 'title_info'
+                        }
+                    }, {
+                        '$lookup': {
+                            'from': 'gender',
+                            'localField': 'gender_id',
+                            'foreignField': 'id',
+                            'as': 'gender_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$title_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$gender_info'
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'job_title_id': '$title_info.id',
+                                'gender_id': '$gender_info.id'
+                            },
+                            'job_title': {
+                                '$first': '$title_info.title'
+                            },
+                            'gender': {
+                                '$first': '$gender_info.gender'
+                            },
+                            'sum': {
+                                '$sum': '$salary'
+                            }
+                        }
+                    }, {
+                        '$project': {
+                            '_id': 0
+                        }
+                    }
+                ]
                 pass
             case "6":
+                _qry = [
+                    {
+                        '$lookup': {
+                            'from': 'education_level',
+                            'localField': 'education_level_id',
+                            'foreignField': 'id',
+                            'as': 'education_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$education_info'
+                        }
+                    }, {
+                        '$lookup': {
+                            'from': 'job_title',
+                            'localField': 'job_title_id',
+                            'foreignField': 'id',
+                            'as': 'title_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$title_info'
+                        }
+                    }, {
+                        '$match': {
+                            'education_info.level': 'Master\'s Degree'
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'title': '$title_info.id'
+                            },
+                            'Title': {
+                                '$first': '$title_info.title'
+                            },
+                            'Education': {
+                                '$first': '$education_info.level'
+                            },
+                            'Count': {
+                                '$sum': 1
+                            }
+                        }
+                    }, {
+                        '$match': {
+                            'Count': {
+                                '$gte': int('15')
+                            }
+                        }
+                    }, {
+                        '$project': {
+                            '_id': 0
+                        }
+                    }
+                ]
                 pass
             case "7":
+                _qry = [
+                    {
+                        '$lookup': {
+                            'from': 'job_title',
+                            'localField': 'job_title_id',
+                            'foreignField': 'id',
+                            'as': 'title_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$title_info'
+                        }
+                    }, {
+                        '$lookup': {
+                            'from': 'gender',
+                            'localField': 'gender_id',
+                            'foreignField': 'id',
+                            'as': 'gender_info'
+                        }
+                    }, {
+                        '$unwind': {
+                            'path': '$gender_info'
+                        }
+                    }, {
+                        '$group': {
+                            '_id': {
+                                'title': '$title_info.id'
+                            },
+                            'Title': {
+                                '$first': '$title_info.title'
+                            },
+                            'Gender': {
+                                '$first': '$gender_info.gender'
+                            },
+                            'AvgSalary': {
+                                '$avg': '$salary'
+                            }
+                        }
+                    }, {
+                        '$sort': {
+                            'AvgSalary': -1
+                        }
+                    }, {
+                        '$limit': 1
+                    }
+                ]
                 pass
+
+        if _qry:
+            _col = db["employee"]
+            _results = _col.aggregate(_qry)
+            print("######################## result ########################")
+            for r in _results:
+                print(r)
+        else:
+            print("Ei kyselyä suoritettavaksi.")
+
+    except Exception as e:
+        print(e)
     except KeyboardInterrupt:
         print("\n")
         print("Palataan valikkoon...")
         pass
+    finally:
+        mongoConn.close()
 
-    startOver()
+    _restart = input("Haluatko suorittaa uuden kyselyn? (k/e)")
+    if _restart.lower() == "k":
+        queryDatabase()
+    else:
+        startOver()
 
 
 def promptAction():
